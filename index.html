@@ -694,7 +694,7 @@ body.phone #credits{display:none}
 .qr-inner h2{font-family:var(--font-display);color:var(--sand);letter-spacing:3px;margin-bottom:8px}
 .qr-lead{color:var(--dim);font-size:.95rem;margin-bottom:16px;line-height:1.5}
 #qr-canvas{background:#fff;padding:10px;border-radius:10px;image-rendering:pixelated;
-  max-width:min(300px,30vh);max-height:min(300px,30vh)}   /* the whole muster on a laptop screen, START included */
+  box-sizing:content-box}   /* sized in openQr so the whole muster, START included, fits a laptop screen */
 .qr-code{font-family:var(--font-num);font-size:2.4rem;letter-spacing:10px;color:var(--teal-hi);margin-top:14px}
 .qr-url{color:var(--dim);font-size:.82rem;word-break:break-all;margin:4px 0 14px}
 .qr-alt{color:var(--dim);font-size:.8rem;margin:-6px 0 12px}
@@ -2917,8 +2917,9 @@ function applyRemote(room){
     if(!begunSession(room)){ musterSync(); return; }
     startFromSession(room);      // the screen pressed start: every device goes in on it
   }
-  // started on the screen, but the session never heard (a dropped write): say it again
-  if(!S.isPhone && room.begun===false && room.host && room.host.id===NET.playerId) sayBegin();
+  // started on the screen, but the session has not heard yet (the press came
+  // before the link was ready, or the write was dropped): say it again
+  if(!S.isPhone && room.begun===false) sayBegin();
   MP.suppress = true;
   try{
     if(room.startTime) S.startTime = room.startTime;
@@ -2992,9 +2993,16 @@ function startFromSession(room){
   tick();
 }
 let beginSaidAt=0;
-/** Tell the session the screen has started — or tell it again, if it seems not to have heard. */
+/**
+ * Tell the session the screen has started — or tell it again, if it seems not
+ * to have heard. Only the screen may say it, so it is not said until the
+ * session knows this device IS the screen: said any earlier it is refused, and
+ * the phones would sit waiting until something else happened to prompt a retry.
+ */
 function sayBegin(){
-  if(!MP.active() || Date.now()-beginSaidAt<4000) return;
+  const host=NET.state&&NET.state.host;
+  if(!MP.active() || !host || host.id!==NET.playerId) return;
+  if(Date.now()-beginSaidAt<4000) return;        // one is already on its way
   beginSaidAt=Date.now();
   NET.send('begin');
 }
@@ -3163,13 +3171,24 @@ function openQr(){
       ? 'Open the game from a web address (not a local file) for phones to be able to join.'
       : joinUrl();
     if(local){ cv.style.display='none'; }
-    else { cv.style.display=''; try{ QR.render(cv, joinUrl(), {size:300}); }catch(e){ cv.style.display='none'; } }
+    else { cv.style.display=''; try{ QR.render(cv, joinUrl(), {size:qrSize()}); }catch(e){ cv.style.display='none'; } }
   }
   refreshQrPlayers();
   refreshLinkStatus();
   $('qr-panel').classList.remove('hidden');
+  musterGate();
 }
-function closeQr(){ $('qr-panel').classList.add('hidden'); }
+function closeQr(){ $('qr-panel').classList.add('hidden'); musterGate(); }
+/** As big as leaves START on the screen. Drawn at that size rather than scaled
+    to it: a code squeezed by the browser has ragged modules, and this one is
+    read off a shared screen through a video call. */
+function qrSize(){ return Math.max(150, Math.min(300, Math.round(innerHeight*0.3)-20)); }
+/** While the crew gathers, nothing behind the muster can be reached — not by
+    a click, which the panel already stops, and not by the Tab key either. */
+function musterGate(){
+  const on = !S.started && !$('qr-panel').classList.contains('hidden');
+  ['stage-wrap','card-root'].forEach(id=>{ const el=$(id); if(el) el.inert=on; });
+}
 const TROUBLE = {
   denied:{ short:'\u25cf database refused the connection',
     long:'The game database refused this game. The <b>escape</b> rules block has not been published in the Firebase console (Realtime Database → Rules → Publish). Phones cannot join until it is.' },
@@ -3213,7 +3232,7 @@ let crewSeen=new Set();
 function refreshQrPlayers(){
   const el=$('qr-players'); if(!el) return;
   const hostId=(NET.state&&NET.state.host&&NET.state.host.id)||null;
-  const players=((NET.state&&NET.state.players)||[]).filter(p=>p.id!==hostId);
+  const players=((NET.state&&NET.state.players)||[]).filter(p=>p.id!==hostId && (S.isPhone || p.id!==NET.playerId));
   // Rebuild only when the roster actually changes, so the arrival animation
   // plays once per person instead of restarting on every sync.
   const sig=players.map(p=>p.id).join('|');
