@@ -271,7 +271,8 @@ const mapArt = { w: 600, h: 360, body: (() => {
   LINE.forEach((s, i) => {
     const [x, y] = LINE_AT[i];
     b += roundel(s, x, y);
-    if (STOPS.includes(s)) b += crescent(x + 26, y - 30, 11, M.brassDark);
+    // straight above the station: up and to the right put the anchor's crescent on the track, half way to the bell
+    if (STOPS.includes(s)) b += crescent(x - 3, y - 37, 11, M.brassDark);
   });
   // the key in the corner: the crescent is the Midnight Special
   b += crescent(470, 304, 12, M.brassDark) + `<path d="M490 304H516" stroke="${M.ink}" stroke-width="3"/>`
