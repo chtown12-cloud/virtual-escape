@@ -831,9 +831,11 @@ const posterArt = { w: 720, h: 500, body: (() => {
   let b = ART.paper(16, 12, 688, 476) + ART.pin(360, 26);
   b += W(360, 70, 'Morse Code', { size: 30, spacing: 4 });
   b += `<path d="M230 84H490" stroke="${I.inkSoft}" stroke-width="1.5"/>`;
+  // Three columns of nine. In four columns the longest codes (J, Q, Y) ran on
+  // into the next column's letter, and Y off the edge of the paper.
   Object.keys(MORSE).forEach((ch, i) => {
-    const col = Math.floor(i / 7), row = i % 7;
-    const x = 52 + col * 168, y = 126 + row * 51;
+    const col = Math.floor(i / 9), row = i % 9;
+    const x = 62 + col * 222, y = 124 + row * 41;
     b += W(x + 12, y + 10, ch, { size: 28 }) + morseMarks(MORSE[ch], x + 44, y, 11, I.ink).svg;
   });
   return b;

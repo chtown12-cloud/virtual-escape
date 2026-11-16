@@ -956,7 +956,7 @@ const ROOM3 = {
 /* ---- the drive gears: a crank, five gears, and one of them slid out of mesh ---- */
 const GEARS = [   // id, x, y, r, emblem
   ['crank', 90, 250, 62, null], ['g1', 177, 189, 44, 'sun'], ['g2', 272, 215, 54, 'moon'], ['g3', 337, 150, 38, 'bell'],
-  ['g4', 419, 180, 30, 'star'], ['g5', 263, 308, 40, 'crown'], ['g6', 332, 320, 30, 'key'],
+  ['g4', 442, 188, 30, 'star'], ['g5', 263, 308, 40, 'crown'], ['g6', 332, 320, 30, 'key'],
 ];
 // the crank turns sunwise; gears in mesh turn opposite ways; the star gear has been slid out of mesh
 const SPIN = { g1: 'anticlockwise', g2: 'clockwise', g3: 'anticlockwise', g4: 'still', g5: 'anticlockwise', g6: 'clockwise' };
@@ -972,7 +972,8 @@ const gear = (cx, cy, r, emblem) => {
 const gearsArt = { w: 520, h: 400, body: (() => {
   let b = `<rect x="2" y="2" width="516" height="396" rx="10" fill="#2a2436" stroke="${V.dark}" stroke-width="4"/>`;
   for (let i = 0; i < 7; i++) b += `<path d="M2 ${50 + i * 50}H518" stroke="${V.dark}" stroke-width="2" opacity=".35"/>`;
-  // the star gear's bracket is slotted, and it has been slid along to the far end of its slot
+  // the star gear's bracket is slotted, and it has been slid along to the far end of its slot —
+  // far enough that its teeth stand well clear of the bell's: "is it touching?" has to have a plain answer
   b += `<path d="M386 168L452 192" stroke="#1c1626" stroke-width="22" stroke-linecap="round"/><path d="M386 168L452 192" stroke="#5c5470" stroke-width="2" stroke-linecap="round" opacity=".8"/>`;
   GEARS.forEach(([id, x, y, r, em]) => b += gear(x, y, r, em));
   // the crank, and which way it is wound
