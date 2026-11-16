@@ -83,6 +83,16 @@ async function muster(browser, transport) {
   let s = await view(screen);
   if (s.started || s.begun !== false || !s.muster) fail(tag, `BEGIN should open the muster with the game not started (started ${s.started}, session begun ${s.begun}, muster up ${s.muster})`);
   const full = s.timer;
+  // the room behind the muster cannot be reached with the keyboard either, and the code is drawn on whole pixels
+  if (!await until(screen, () => document.getElementById('qr-canvas').offsetWidth > 0)) fail(tag, 'the muster never showed a QR code');
+  const gate = await screen.evaluate(() => {
+    const cv = document.getElementById('qr-canvas'), box = getComputedStyle(cv);
+    return { inert: document.getElementById('card-root').inert && document.getElementById('stage-wrap').inert,
+      drawn: cv.width, shown: Math.round(parseFloat(box.width)), bottom: document.getElementById('qr-done').getBoundingClientRect().bottom, vh: innerHeight };
+  });
+  if (!gate.inert) fail(tag, 'the room behind the muster can still be reached with the Tab key');
+  if (gate.drawn !== gate.shown) fail(tag, `the QR code is drawn ${gate.drawn}px wide and shown at ${gate.shown}px — scaled codes scan badly off a shared screen`);
+  if (gate.bottom > gate.vh) fail(tag, `START is off the bottom of a ${gate.vh}px-high screen`);
 
   // a phone that joins now waits for the screen
   const phone = await joinPhone(ctx, await screen.evaluate(() => S.code), 'Mo', errors);
@@ -100,6 +110,7 @@ async function muster(browser, transport) {
   await screen.waitForTimeout(400);
   const [a, b] = [await view(screen), await view(phone)];
   if (!a.started || a.muster) fail(tag, 'START did not start the game on the screen');
+  if (await screen.evaluate(() => document.getElementById('card-root').inert)) fail(tag, 'the room is still shut off after START');
   if (!a.begun || !b.begun) fail(tag, 'the session never heard that the game started');
   if (a.startTime !== a.session || b.startTime !== a.session) fail(tag, `the clocks disagree: screen ${a.startTime}, phone ${b.startTime}, session ${a.session}`);
 
@@ -118,6 +129,18 @@ async function muster(browser, transport) {
   await quick.click('#qr-done');
   if (!await quick.evaluate(() => S.started && !S.code)) fail(tag, 'START during setup did not start the game');
   if (!await until(quick, () => NET.state && NET.state.begun === true, null, 6000)) fail(tag, 'START during setup never reached the session, so phones would wait forever');
+  await ctx.close();
+
+  // ...and so does START pressed in the moment the link exists but the screen has not yet taken its place in it
+  ctx = await context(browser, transport);
+  const racer = await ctx.newPage();
+  racer.on('pageerror', (e) => errors.push('racer: ' + e.message));
+  await racer.goto(BASE + '/?s=vorstag');
+  await racer.evaluate(() => { const real = NET.send.bind(NET); NET.send = (a, x) => (a === 'join' ? new Promise((r) => setTimeout(() => r(real(a, x)), 700)) : real(a, x)); });
+  await racer.click('#start-btn');
+  await until(racer, () => !!NET.code);
+  await racer.click('#qr-done');
+  if (!await until(racer, () => NET.state && NET.state.begun === true, null, 2500)) fail(tag, 'START pressed as the link came up was not heard promptly — a phone joining then would be left waiting');
   await ctx.close();
 
   // the screen goes away during the muster; whoever picks it up can start it
